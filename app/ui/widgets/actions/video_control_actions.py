@@ -212,6 +212,13 @@ def enable_zoom_and_pan(view: QtWidgets.QGraphicsView):
     SCALE_FACTOR = 1.5
     view.zoom_value = 0  # Track zoom level
     view.last_scale_factor = 1.0  # Track the last scale factor (1.0 = no scaling)
+    view._pan_active = False
+    view._last_pan_point = QtCore.QPoint()
+    
+    # Store the original event handlers
+    original_mousePressEvent = view.mousePressEvent
+    original_mouseMoveEvent = view.mouseMoveEvent
+    original_mouseReleaseEvent = view.mouseReleaseEvent
 
     def zoom(self:QtWidgets.QGraphicsView, step=False):
         """Zoom in or out by a step."""
@@ -223,6 +230,12 @@ def enable_zoom_and_pan(view: QtWidgets.QGraphicsView):
             self.last_scale_factor *= factor  # Update the last scale factor
         if factor > 0:
             self.scale(factor, factor)
+            
+        # Update cursor based on zoom level
+        if self.last_scale_factor > 1.0:
+            self.viewport().setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
+        else:
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     def wheelEvent(self:QtWidgets.QGraphicsView, event:QtGui.QWheelEvent):
         """Handle mouse wheel event for zooming."""
@@ -231,9 +244,9 @@ def enable_zoom_and_pan(view: QtWidgets.QGraphicsView):
             zoom(self, delta // abs(delta))
     
     def reset_zoom(self:QtWidgets.QGraphicsView):
-        # print("Called reset_zoom()")
         # Reset zoom level to fit the view.
         self.zoom_value = 0
+        self.last_scale_factor = 1.0
         if not self.scene():
             return
         items = self.scene().items()
@@ -248,19 +261,65 @@ def enable_zoom_and_pan(view: QtWidgets.QGraphicsView):
         factor = min(view_rect.width() / scene_rect.width(),
                     view_rect.height() / scene_rect.height())
         self.scale(factor, factor)
+        self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
-    # Attach methods to the view
+    def mousePressEvent(self:QtWidgets.QGraphicsView, event:QtGui.QMouseEvent):
+        """Custom mouse press event to enable panning"""
+        if event.button() == QtCore.Qt.MouseButton.LeftButton and self.last_scale_factor > 1.0:
+            self._pan_active = True
+            self._last_pan_point = event.pos()
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+        else:
+            # Call the original handler for other cases
+            original_mousePressEvent(event)
+
+    def mouseMoveEvent(self:QtWidgets.QGraphicsView, event:QtGui.QMouseEvent):
+        """Custom mouse move event to handle panning"""
+        if self._pan_active:
+            # Calculate how much the mouse has moved
+            delta = event.pos() - self._last_pan_point
+            self._last_pan_point = event.pos()
+            
+            # Scroll the scrollbars by the delta amount
+            hbar = self.horizontalScrollBar()
+            vbar = self.verticalScrollBar()
+            hbar.setValue(hbar.value() - delta.x())
+            vbar.setValue(vbar.value() - delta.y())
+            
+            event.accept()
+        else:
+            # Call the original handler for other cases
+            original_mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self:QtWidgets.QGraphicsView, event:QtGui.QMouseEvent):
+        """Custom mouse release event to end panning"""
+        if event.button() == QtCore.Qt.MouseButton.LeftButton and self._pan_active:
+            self._pan_active = False
+            if self.last_scale_factor > 1.0:
+                self.viewport().setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
+            else:
+                self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+            event.accept()
+        else:
+            # Call the original handler for other cases
+            original_mouseReleaseEvent(event)
+
+    # Attach the methods to the view, preserving the existing event chain
     view.zoom = partial(zoom, view)
     view.reset_zoom = partial(reset_zoom, view)
     view.wheelEvent = partial(wheelEvent, view)
+    view.mousePressEvent = partial(mousePressEvent, view)
+    view.mouseMoveEvent = partial(mouseMoveEvent, view)
+    view.mouseReleaseEvent = partial(mouseReleaseEvent, view)
 
-    # view.zoom = zoom.__get__(view)
-    # view.reset_zoom = reset_zoom.__get__(view)
-    # view.wheelEvent = wheelEvent.__get__(view)
-
-    # Set anchors for better interaction
+    # Set transformation anchors for precise zooming
     view.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
     view.setResizeAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+    
+    # Add smooth rendering
+    view.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+    view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
 
 
 def play_video(main_window: 'MainWindow', checked: bool):

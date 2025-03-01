@@ -14,5 +14,5 @@ if __name__=="__main__":
         _style = qdarktheme.load_stylesheet(custom_colors={"primary": "#4facc9"})+'\n'+_style
         app.setStyleSheet(_style)
     window = main_ui.MainWindow()
-    window.show()
+    window.showMaximized()
     app.exec()
