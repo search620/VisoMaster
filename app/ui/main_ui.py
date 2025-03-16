@@ -195,6 +195,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # Initialize presets list and buttons
         preset_actions.refresh_presets_list(self)
+        preset_actions.setup_preset_list_context_menu(self)
         self.applyPresetButton.clicked.connect(partial(preset_actions.apply_selected_preset, self))
         self.savePresetButton.clicked.connect(partial(preset_actions.save_current_as_preset, self))
         self.overwritePresetButton.clicked.connect(partial(preset_actions.overwrite_selected_preset, self))

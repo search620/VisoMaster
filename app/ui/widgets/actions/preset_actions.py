@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtCore
 from typing import TYPE_CHECKING
 from functools import partial
 
@@ -22,6 +22,63 @@ def handle_preset_double_click(main_window: 'MainWindow', item: 'QListWidgetItem
 
     if result == QtWidgets.QMessageBox.Yes:
         apply_selected_preset(main_window)
+
+def rename_preset(main_window: 'MainWindow', item: 'QListWidgetItem'):
+    """Rename the selected preset"""
+    old_name = item.text()
+    new_name, ok = QtWidgets.QInputDialog.getText(
+        main_window, 
+        "Rename Preset", 
+        "Enter new name:", 
+        text=old_name
+    )
+    
+    if ok and new_name and new_name != old_name:
+        old_path = Path("presets") / f"{old_name}.json"
+        new_path = Path("presets") / f"{new_name}.json"
+        
+        if new_path.exists():
+            QtWidgets.QMessageBox.warning(
+                main_window,
+                "Name Exists",
+                f"A preset named '{new_name}' already exists.",
+                QtWidgets.QMessageBox.Ok
+            )
+            return
+        
+        try:
+            old_path.rename(new_path)
+            refresh_presets_list(main_window)
+            common_widget_actions.create_and_show_toast_message(
+                main_window,
+                'Preset Renamed',
+                f'Renamed preset: {old_name} to {new_name}'
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                main_window,
+                "Error",
+                f"Failed to rename preset: {str(e)}",
+                QtWidgets.QMessageBox.Ok
+            )
+
+def show_preset_context_menu(main_window: 'MainWindow', position):
+    """Show context menu for preset list items"""
+    item = main_window.presetsList.itemAt(position)
+    if item:
+        menu = QtWidgets.QMenu()
+        rename_action = menu.addAction("Rename")
+        action = menu.exec_(main_window.presetsList.viewport().mapToGlobal(position))
+        
+        if action == rename_action:
+            rename_preset(main_window, item)
+
+def setup_preset_list_context_menu(main_window: 'MainWindow'):
+    """Set up the context menu for the presets list"""
+    main_window.presetsList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+    main_window.presetsList.customContextMenuRequested.connect(
+        partial(show_preset_context_menu, main_window)
+    )
 
 def overwrite_selected_preset(main_window: 'MainWindow'):
     """Overwrite the selected preset with current parameters"""

@@ -222,6 +222,32 @@ def load_saved_workspace(main_window: 'MainWindow', data_filename: str|bool = Fa
             common_widget_actions.create_control(main_window, 'OutputMediaFolder', control['OutputMediaFolder'])
             main_window.outputFolderLineEdit.setText(control['OutputMediaFolder'])
 
+            # Restore tab order if present in the saved data
+            if 'tab_state' in data:
+                tab_state = data['tab_state']
+                
+                # Create a mapping of tab text to tab indices
+                tab_texts = {}
+                for i in range(main_window.tabWidget.count()):
+                    tab_texts[main_window.tabWidget.tabText(i)] = i
+                
+                # Reorder the tabs based on the saved order
+                for i, tab_info in enumerate(tab_state['tab_order']):
+                    tab_text = tab_info['text']
+                    if tab_text in tab_texts:
+                        current_index = tab_texts[tab_text]
+                        # Only move if not already in the right position
+                        if current_index != i:
+                            main_window.tabWidget.tabBar().moveTab(current_index, i)
+                            # Update the mapping after moving the tab
+                            tab_texts = {}
+                            for j in range(main_window.tabWidget.count()):
+                                tab_texts[main_window.tabWidget.tabText(j)] = j
+                
+                # Set the active tab index
+                if 'current_tab_index' in tab_state:
+                    main_window.tabWidget.setCurrentIndex(tab_state['current_tab_index'])
+
             layout_actions.fit_image_to_view_onchange(main_window)
 
             if main_window.target_faces:
@@ -258,6 +284,19 @@ def save_current_workspace(main_window: 'MainWindow', data_filename:str|bool = F
     # Convert params to dict
     markers = convert_markers_to_supported_type(main_window, markers, dict)
 
+    # Save tab order - store the current tab index and the tab order
+    tab_state = {
+        'current_tab_index': main_window.tabWidget.currentIndex(),
+        'tab_order': []
+    }
+    
+    # Store the tab order by getting the tab text for each position
+    for i in range(main_window.tabWidget.count()):
+        tab_state['tab_order'].append({
+            'text': main_window.tabWidget.tabText(i),
+            'original_index': i
+        })
+
     save_data = {
         'selected_media_id': selected_media_id,
         'target_medias_data': target_medias_data,
@@ -269,7 +308,8 @@ def save_current_workspace(main_window: 'MainWindow', data_filename:str|bool = F
         'last_target_media_folder_path': main_window.last_target_media_folder_path,
         'last_input_media_folder_path': main_window.last_input_media_folder_path,
         'loaded_embedding_filename': main_window.loaded_embedding_filename,
-        'current_widget_parameters': convert_parameters_to_supported_type(main_window, main_window.current_widget_parameters, dict)
+        'current_widget_parameters': convert_parameters_to_supported_type(main_window, main_window.current_widget_parameters, dict),
+        'tab_state': tab_state  # Add the tab state to the saved data
     }
     if not data_filename:
         data_filename, _ = QtWidgets.QFileDialog.getSaveFileName(main_window, filter='JSON (*.json)')
