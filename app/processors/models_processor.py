@@ -67,7 +67,8 @@ class ModelsProcessor(QtCore.QObject):
         ]       
         self.nThreads = 2
         self.syncvec = torch.empty((1, 1), dtype=torch.float32, device=self.device)
-
+        # Group-based VRAM management: group name -> currently loaded model name
+        self.model_groups = {}  
         # Initialize models and models_path
         self.models: Dict[str, onnxruntime.InferenceSession] = {}
         self.models_path = {}
@@ -122,24 +123,40 @@ class ModelsProcessor(QtCore.QObject):
         self.lp_mask_crop = self.face_editors.lp_mask_crop
         self.lp_lip_array = self.face_editors.lp_lip_array
 
-    def load_model(self, model_name, session_options=None):
+    # New helper method to unload a single model from VRAM
+    def unload_model(self, model_name: str):
+        with self.model_lock:
+            model_instance = self.models.get(model_name)
+            if model_instance:
+                print(f"Unloading model {model_name} from VRAM")
+                if hasattr(model_instance, "cleanup"):
+                    model_instance.cleanup()  # For TensorRT models
+                del model_instance
+                self.models[model_name] = None
+                gc.collect()
+                torch.cuda.empty_cache()
+
+    def load_model(self, model_name, session_options=None, group: str = None):
         with self.model_lock:
             self.main_window.model_loading_signal.emit()
-            # QApplication.processEvents()
-            # if not is_file_exists(self.models_path[model_name]):
-            #     download_file(model_name, self.models_path[model_name], self.models_data[model_name]['hash'], self.models_data[model_name]['url'])
+            # Unload previous model in the same group if any
+            if group:
+                current = self.model_groups.get(group)
+                if current and current != model_name:
+                    self.unload_model(current)
+                    self.model_groups[group] = None
             if session_options is None:
                 model_instance = onnxruntime.InferenceSession(self.models_path[model_name], providers=self.providers)
             else:
                 model_instance = onnxruntime.InferenceSession(self.models_path[model_name], sess_options=session_options, providers=self.providers)
-
-            # Check if another thread has already loaded an instance for this model, if yes then delete the current one and return that instead
             if self.models[model_name]:
                 del model_instance
                 gc.collect()
                 return self.models[model_name]
             self.main_window.model_loaded_signal.emit()
-
+            self.models[model_name] = model_instance
+            if group:
+                self.model_groups[group] = model_name
             return model_instance
 
     def load_dfm_model(self, dfm_model):
@@ -163,21 +180,28 @@ class ModelsProcessor(QtCore.QObject):
             return self.dfm_models[dfm_model]
 
 
-    def load_model_trt(self, model_name, custom_plugin_path=None, precision='fp16', debug=False):
-        # self.showModelLoadingProgressBar()
-        #time.sleep(0.5)
+    def load_model_trt(self, model_name, custom_plugin_path=None, precision='fp16', debug=False, group: str = None):
         self.main_window.model_loading_signal.emit()
-
+        if group:
+            current = self.model_groups.get(group)
+            if current and current != model_name:
+                self.unload_model(current)
+                self.model_groups[group] = None
         if not os.path.exists(self.models_trt_path[model_name]):
             onnx2trt(onnx_model_path=self.models_path[model_name],
                      trt_model_path=self.models_trt_path[model_name],
                      precision=precision,
                      custom_plugin_path=custom_plugin_path,
-                     verbose=False
-                    )
-        model_instance = TensorRTPredictor(model_path=self.models_trt_path[model_name], custom_plugin_path=custom_plugin_path, pool_size=self.nThreads, device=self.device, debug=debug)
-
+                     verbose=False)
+        model_instance = TensorRTPredictor(model_path=self.models_trt_path[model_name],
+                                           custom_plugin_path=custom_plugin_path,
+                                           pool_size=self.nThreads,
+                                           device=self.device,
+                                           debug=debug)
         self.main_window.model_loaded_signal.emit()
+        self.models[model_name] = model_instance
+        if group:
+            self.model_groups[group] = model_name
         return model_instance
 
     def delete_models(self):

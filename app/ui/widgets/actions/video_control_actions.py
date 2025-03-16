@@ -198,15 +198,59 @@ def delete_all_markers(main_window: 'MainWindow'):
     main_window.markers = {}
 
 def view_fullscreen(main_window: 'MainWindow'):
-
-    if main_window.is_full_screen:
-        main_window.showNormal()  # Exit full-screen mode
-        main_window.menuBar().show()
-    else:
+    # Store panel states before entering/exiting fullscreen
+    if not main_window.is_full_screen:
+        # Save current window state (normal/maximized) before entering fullscreen
+        main_window.was_maximized = main_window.isMaximized()
+        
+        # Save current panel visibility states before entering fullscreen
+        main_window.pre_fullscreen_states = {
+            'faces_panel': main_window.facesPanelCheckBox.isChecked(),
+            'media_panel': main_window.mediaPanelCheckBox.isChecked(),
+            'parameters_panel': main_window.parametersPanelCheckBox.isChecked()
+        }
+        
+        # Hide all panels
+        if main_window.facesPanelCheckBox.isChecked():
+            main_window.facesPanelCheckBox.setChecked(False)
+        
+        if main_window.mediaPanelCheckBox.isChecked():
+            main_window.mediaPanelCheckBox.setChecked(False)
+            
+        if main_window.parametersPanelCheckBox.isChecked():
+            main_window.parametersPanelCheckBox.setChecked(False)
+            
         main_window.showFullScreen()  # Enter full-screen mode
         main_window.menuBar().hide()
+        main_window.viewFullScreenButton.setToolTip("Exit Full Screen (F11)")
+    else:
+        # Exit fullscreen and restore previous window state (maximized or normal)
+        if hasattr(main_window, 'was_maximized') and main_window.was_maximized:
+            main_window.showMaximized()
+        else:
+            main_window.showNormal()
+            
+        main_window.menuBar().show()
+        main_window.viewFullScreenButton.setToolTip("View Full Screen (F11)")
+        
+        # Restore panel states
+        if hasattr(main_window, 'pre_fullscreen_states'):
+            if main_window.pre_fullscreen_states.get('faces_panel', True):
+                main_window.facesPanelCheckBox.setChecked(True)
+                
+            if main_window.pre_fullscreen_states.get('media_panel', True):
+                main_window.mediaPanelCheckBox.setChecked(True)
+                
+            if main_window.pre_fullscreen_states.get('parameters_panel', True):
+                main_window.parametersPanelCheckBox.setChecked(True)
 
+    # Update fullscreen state and refit the graphics view
     main_window.is_full_screen = not main_window.is_full_screen
+    # Fit the view to the new window size
+    if main_window.scene.items():
+        pixmap_item = main_window.scene.items()[0]
+        scene_rect = pixmap_item.boundingRect()
+        QtCore.QTimer.singleShot(100, lambda: main_window.graphicsViewFrame.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
 def enable_zoom_and_pan(view: QtWidgets.QGraphicsView):
     SCALE_FACTOR = 1.5

@@ -1,0 +1,26 @@
+Task Description
+Implement a VRAM management system for face restoration models with the following requirements:
+
+Group-based Model Management:
+
+Models are organized into logical groups (e.g., "Upscalers", "Restoration", "Enhancement")
+Only one model from each group can be loaded in VRAM at any time
+Automatic Model Unloading:
+
+When switching to a different model within the same group, the previously loaded model must be completely unloaded
+All VRAM associated with the previous model must be properly freed
+Handles graceful unloading with proper resource cleanup
+Support for Different Model Types:
+
+Must work with all model types (PyTorch, ONNX, TensorRT, etc.)
+Handle the specific unloading requirements of each model type
+Account for TensorRT's different memory management needs
+User Experience:
+
+Provide appropriate loading/unloading indicators in console
+Maintain responsiveness during model switching
+Error Handling:
+
+Gracefully handle failed model loading/unloading
+Provide meaningful feedback to users
+Prevent VRAM leaks even in error scenarios

@@ -15,6 +15,7 @@ from app.ui.widgets.actions import filter_actions
 from app.ui.widgets.actions import save_load_actions
 from app.ui.widgets.actions import list_view_actions
 from app.ui.widgets.actions import graphics_view_actions
+from app.ui.widgets.actions import preset_actions
 
 from app.processors.video_processor import VideoProcessor
 from app.processors.models_processor import ModelsProcessor
@@ -78,6 +79,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.last_input_media_folder_path = ''
 
         self.is_full_screen = False
+        self.pre_fullscreen_states = {}
+        self.was_maximized = False
         self.dfm_models_data = DFM_MODELS_DATA
         # This flag is used to make sure new loaded media is properly fit into the graphics frame on the first load
         self.loading_new_media = False
@@ -189,6 +192,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.outputFolderButton.clicked.connect(partial(list_view_actions.select_output_media_folder, self))
         # Create a control value for OutputMediaFolder
         common_widget_actions.create_control(self, 'OutputMediaFolder', '')
+        
+        # Initialize presets list and buttons
+        preset_actions.refresh_presets_list(self)
+        self.applyPresetButton.clicked.connect(partial(preset_actions.apply_selected_preset, self))
+        self.savePresetButton.clicked.connect(partial(preset_actions.save_current_as_preset, self))
+        self.overwritePresetButton.clicked.connect(partial(preset_actions.overwrite_selected_preset, self))
+        self.presetsList.itemDoubleClicked.connect(partial(preset_actions.handle_preset_double_click, self))
 
         # Initialize current_widget_parameters with default values
         self.current_widget_parameters = ParametersDict(copy.deepcopy(self.default_parameters), self.default_parameters)
@@ -241,6 +251,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             case QtCore.Qt.Key_R:
                 self.buttonMediaRecord.click()
             case QtCore.Qt.Key_F:
+                # Check if no modifier keys are pressed (avoiding conflict with Alt+F)
+                if not (event.modifiers() & (QtCore.Qt.KeyboardModifier.ControlModifier | 
+                                            QtCore.Qt.KeyboardModifier.AltModifier | 
+                                            QtCore.Qt.KeyboardModifier.ShiftModifier)):
+                    video_control_actions.view_fullscreen(self)
+                elif event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier:
+                    video_control_actions.remove_video_slider_marker(self)
+                else:
+                    video_control_actions.add_video_slider_marker(self)
+            case QtCore.Qt.Key_Escape:
+                if self.is_full_screen:
+                    video_control_actions.view_fullscreen(self)
+            case QtCore.Qt.Key_F:
                 if event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier:
                     video_control_actions.remove_video_slider_marker(self)
                 else:
@@ -264,10 +287,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         event.accept()
 
     def load_last_workspace(self):
-        # Show the load workspace dialog if the file exists
+        # Automatically load the last workspace if the file exists without showing the dialog
         if Path('last_workspace.json').is_file():
-            load_dialog = widget_components.LoadLastWorkspaceDialog(self)
-            load_dialog.exec_()
+            save_load_actions.load_saved_workspace(self, 'last_workspace.json')
 
     def save_last_workspace(self):
         pass

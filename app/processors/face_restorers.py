@@ -1,4 +1,3 @@
-
 from typing import TYPE_CHECKING
 
 import torch
@@ -109,8 +108,8 @@ class FaceRestorers:
 
     def run_GFPGAN(self, image, output):
         if not self.models_processor.models['GFPGANv1.4']:
-            self.models_processor.models['GFPGANv1.4'] = self.models_processor.load_model('GFPGANv1.4')
-
+            # Load model with group-based management
+            self.models_processor.models['GFPGANv1.4'] = self.models_processor.load_model('GFPGANv1.4', group='Restoration')
         io_binding = self.models_processor.models['GFPGANv1.4'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,512,512), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='output', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,512,512), buffer_ptr=output.data_ptr())
@@ -123,8 +122,7 @@ class FaceRestorers:
 
     def run_GPEN_256(self, image, output):
         if not self.models_processor.models['GPENBFR256']:
-            self.models_processor.models['GPENBFR256'] = self.models_processor.load_model('GPENBFR256')
-
+            self.models_processor.models['GPENBFR256'] = self.models_processor.load_model('GPENBFR256', group='Restoration')
         io_binding = self.models_processor.models['GPENBFR256'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,256,256), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='output', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,256,256), buffer_ptr=output.data_ptr())
@@ -137,8 +135,7 @@ class FaceRestorers:
 
     def run_GPEN_512(self, image, output):
         if not self.models_processor.models['GPENBFR512']:
-            self.models_processor.models['GPENBFR512'] = self.models_processor.load_model('GPENBFR512')
-
+            self.models_processor.models['GPENBFR512'] = self.models_processor.load_model('GPENBFR512', group='Restoration')
         io_binding = self.models_processor.models['GPENBFR512'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,512,512), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='output', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,512,512), buffer_ptr=output.data_ptr())
@@ -151,8 +148,7 @@ class FaceRestorers:
 
     def run_GPEN_1024(self, image, output):
         if not self.models_processor.models['GPENBFR1024']:
-            self.models_processor.models['GPENBFR1024'] = self.models_processor.load_model('GPENBFR1024')
-
+            self.models_processor.models['GPENBFR1024'] = self.models_processor.load_model('GPENBFR1024', group='Restoration')
         io_binding = self.models_processor.models['GPENBFR1024'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,1024,1024), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='output', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,1024,1024), buffer_ptr=output.data_ptr())
@@ -165,8 +161,7 @@ class FaceRestorers:
 
     def run_GPEN_2048(self, image, output):
         if not self.models_processor.models['GPENBFR2048']:
-            self.models_processor.models['GPENBFR2048'] = self.models_processor.load_model('GPENBFR2048')
-
+            self.models_processor.models['GPENBFR2048'] = self.models_processor.load_model('GPENBFR2048', group='Restoration')
         io_binding = self.models_processor.models['GPENBFR2048'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,2048,2048), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='output', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,2048,2048), buffer_ptr=output.data_ptr())
@@ -179,8 +174,7 @@ class FaceRestorers:
 
     def run_codeformer(self, image, output, fidelity_weight_value=0.9):
         if not self.models_processor.models['CodeFormer']:
-            self.models_processor.models['CodeFormer'] = self.models_processor.load_model('CodeFormer')
-
+            self.models_processor.models['CodeFormer'] = self.models_processor.load_model('CodeFormer', group='Restoration')
         io_binding = self.models_processor.models['CodeFormer'].io_binding()
         io_binding.bind_input(name='x', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=(1,3,512,512), buffer_ptr=image.data_ptr())
         w = np.array([fidelity_weight_value], dtype=np.double)
@@ -195,8 +189,7 @@ class FaceRestorers:
 
     def run_VQFR_v2(self, image, output, fidelity_ratio_value):
         if not self.models_processor.models['VQFRv2']:
-            self.models_processor.models['VQFRv2'] = self.models_processor.load_model('VQFRv2')
-
+            self.models_processor.models['VQFRv2'] = self.models_processor.load_model('VQFRv2', group='Restoration')
         assert fidelity_ratio_value >= 0.0 and fidelity_ratio_value <= 1.0, 'fidelity_ratio must in range[0,1]'
         fidelity_ratio = torch.tensor(fidelity_ratio_value).to(self.models_processor.device)
 
@@ -216,8 +209,7 @@ class FaceRestorers:
 
     def run_RestoreFormerPlusPlus(self, image, output):
         if not self.models_processor.models['RestoreFormerPlusPlus']:
-            self.models_processor.models['RestoreFormerPlusPlus'] = self.models_processor.load_model('RestoreFormerPlusPlus')
-
+            self.models_processor.models['RestoreFormerPlusPlus'] = self.models_processor.load_model('RestoreFormerPlusPlus', group='Restoration')
         io_binding = self.models_processor.models['RestoreFormerPlusPlus'].io_binding()
         io_binding.bind_input(name='input', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=image.size(), buffer_ptr=image.data_ptr())
         io_binding.bind_output(name='2359', device_type=self.models_processor.device, device_id=0, element_type=np.float32, shape=output.size(), buffer_ptr=output.data_ptr())
