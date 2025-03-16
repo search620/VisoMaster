@@ -30,6 +30,8 @@ class VideoProcessor(QObject):
     frame_processed_signal = Signal(int, QPixmap, numpy.ndarray)
     webcam_frame_processed_signal = Signal(QPixmap, numpy.ndarray)
     single_frame_processed_signal = Signal(int, QPixmap, numpy.ndarray)
+    # Add a new signal for FPS updates
+    fps_update_signal = Signal(float)
     def __init__(self, main_window: 'MainWindow', num_threads=2):
         super().__init__()
         self.main_window = main_window
@@ -79,6 +81,13 @@ class VideoProcessor(QObject):
 
         self.single_frame_processed_signal.connect(self.display_current_frame)
 
+        self.frame_times = []
+        self.last_fps_update_time = time.time()
+        self.fps_update_interval = 0.5  # Update FPS display every 0.5 seconds
+        
+        # Connect the fps_update_signal to update the FPS counter
+        self.fps_update_signal.connect(self.update_fps_display)
+
     Slot(int, QPixmap, numpy.ndarray)
     def store_frame_to_display(self, frame_number, pixmap, frame):
         # print("Called store_frame_to_display()")
@@ -89,6 +98,9 @@ class VideoProcessor(QObject):
     def store_webcam_frame_to_display(self, pixmap, frame):
         # print("Called store_webcam_frame_to_display()")
         self.webcam_frames_to_display.put((pixmap, frame))
+        
+        # Calculate FPS for webcam as well
+        self.calculate_fps()
 
     Slot(int, QPixmap, numpy.ndarray)
     def display_current_frame(self, frame_number, pixmap, frame):
@@ -99,6 +111,10 @@ class VideoProcessor(QObject):
         else:
             graphics_view_actions.update_graphics_view(self.main_window, pixmap, frame_number,)
         self.current_frame = frame
+        
+        # Calculate and update FPS
+        self.calculate_fps()
+        
         torch.cuda.empty_cache()
         #Set GPU Memory Progressbar
         common_widget_actions.update_gpu_memory_progressbar(self.main_window)
@@ -120,6 +136,10 @@ class VideoProcessor(QObject):
             if not self.recording:
                 video_control_actions.update_widget_values_from_markers(self.main_window, self.next_frame_to_display)
             graphics_view_actions.update_graphics_view(self.main_window, pixmap, self.next_frame_to_display)
+            
+            # Calculate and update FPS
+            self.calculate_fps()
+            
             self.threads.pop(self.next_frame_to_display)
             self.next_frame_to_display += 1
 
@@ -442,3 +462,33 @@ class VideoProcessor(QObject):
         if self.virtcam:
             self.virtcam.close()
         self.virtcam = None
+
+    def update_fps_display(self, fps):
+        """Update the FPS counter in the UI"""
+        self.main_window.fpsCounterLabel.setText(f"{fps:.1f} FPS")
+
+    def calculate_fps(self):
+        """Calculate the current FPS based on recent frame processing times"""
+        current_time = time.time()
+        
+        # Add current timestamp to the frame_times list
+        self.frame_times.append(current_time)
+        
+        # Keep only the last 30 frames for calculation
+        if len(self.frame_times) > 30:
+            self.frame_times.pop(0)
+            
+        # Calculate FPS if we have at least 2 frames
+        if len(self.frame_times) >= 2:
+            # Calculate time difference between the oldest and newest frame
+            time_diff = self.frame_times[-1] - self.frame_times[0]
+            if time_diff > 0:
+                fps = (len(self.frame_times) - 1) / time_diff
+                
+                # Update FPS display at most every fps_update_interval seconds
+                if current_time - self.last_fps_update_time >= self.fps_update_interval:
+                    self.fps_update_signal.emit(fps)
+                    self.last_fps_update_time = current_time
+                    
+                return fps
+        return 0.0

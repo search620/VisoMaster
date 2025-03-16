@@ -215,6 +215,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # Set face_swap_tab as the default focused tab
         self.tabWidget.setCurrentIndex(0)
         # widget_actions.add_groupbox_and_widgets_from_layout_map(self)
+
+        # Initialize FPS counter
+        self.fpsCounterLabel.setVisible(True)
+        self.fpsCounterLabel.setToolTip("Current frames per second")
+        
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setupUi(self)

@@ -223,6 +223,17 @@ def view_fullscreen(main_window: 'MainWindow'):
         main_window.showFullScreen()  # Enter full-screen mode
         main_window.menuBar().hide()
         main_window.viewFullScreenButton.setToolTip("Exit Full Screen (F11)")
+        
+        # Make sure FPS counter remains visible with a better contrast in fullscreen
+        main_window.fpsCounterLabel.setStyleSheet("""
+            QLabel {
+                background-color: rgba(22, 117, 158, 200);
+                color: white;
+                border-radius: 4px;
+                padding: 2px 8px;
+                font-weight: bold;
+            }
+        """)
     else:
         # Exit fullscreen and restore previous window state (maximized or normal)
         if hasattr(main_window, 'was_maximized') and main_window.was_maximized:
@@ -243,6 +254,17 @@ def view_fullscreen(main_window: 'MainWindow'):
                 
             if main_window.pre_fullscreen_states.get('parameters_panel', True):
                 main_window.parametersPanelCheckBox.setChecked(True)
+        
+        # Restore original FPS counter style
+        main_window.fpsCounterLabel.setStyleSheet("""
+            QLabel {
+                background-color: rgba(22, 117, 158, 180);
+                color: white;
+                border-radius: 4px;
+                padding: 2px 8px;
+                font-weight: bold;
+            }
+        """)
 
     # Update fullscreen state and refit the graphics view
     main_window.is_full_screen = not main_window.is_full_screen

@@ -265,6 +265,23 @@ class Ui_MainWindow(object):
 
         self.horizontalLayoutMediaButtons.addWidget(self.viewFullScreenButton)
 
+        self.fpsCounterLabel = QLabel(self.mediaLayout)
+        self.fpsCounterLabel.setObjectName(u"fpsCounterLabel")
+        self.fpsCounterLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fpsCounterLabel.setMinimumWidth(80)
+        self.fpsCounterLabel.setText("0 FPS")
+        self.fpsCounterLabel.setStyleSheet("""
+            QLabel {
+                background-color: rgba(22, 117, 158, 180);
+                color: white;
+                border-radius: 4px;
+                padding: 2px 8px;
+                font-weight: bold;
+            }
+        """)
+
+        self.horizontalLayoutMediaButtons.addWidget(self.fpsCounterLabel)
+
         self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayoutMediaButtons.addItem(self.horizontalSpacer_5)
